@@ -1,17 +1,43 @@
+#!/usr/bin/env python3
+
 import socket
-import sys
 
-HOST, PORT = "www.google.com", 80
-data = " ".join(sys.argv[1:])
+HOST = "www.google.com"
+PORT = 80
+BUFFER_SIZE = 1024
 
-# Create a socket (SOCK_STREAM means a TCP socket)
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-    # Connect to server and send data
-    sock.connect((HOST, PORT))
-    sock.sendall(bytes(data + "\n", "utf-8"))
+payload = "GET / HTTP/1.0\r\nHOST: {}\r\n\r\n ".format(HOST)
 
-    # Receive data from the server and shut down
-    received = str(sock.recv(1024), "utf-8")
+def get_request(addr):
+    (family, socktype, proto, canonname, sockaddr) = addr
+    try:
+        s = socket.socket(family, socktype, proto)
+        s.connect(sockaddr)
+        s.sendall(payload.encode())
+        s.shutdown(socket.SHUT_WR) #stop sending payload
 
-print("Sent:     {}".format(data))
-print("Received: {}".format(received))
+        #recieve data until no more
+        full_data = b""
+        while True:
+            data = s.recv(BUFFER_SIZE)
+            if not data:
+                break
+            full_data += data
+        print(full_data)
+        
+    except Exception as e:
+        print(e)
+    finally:
+        s.close()
+
+def main():
+    addr_info = socket.getaddrinfo(HOST,PORT)
+    for addr in addr_info:
+        (family, socktype, proto, canonname, sockaddr) = addr
+        if family == socket.AF_INET and socktype == socket.SOCK_STREAM:
+            get_request(addr)
+        
+
+
+if __name__ == "__main__":
+    main()
